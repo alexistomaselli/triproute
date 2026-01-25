@@ -63,8 +63,12 @@ const App: React.FC = () => {
           lng: position.coords.longitude
         });
       },
-      (error) => console.error("Error watching location:", error),
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      (error) => console.log("Location info:", error.message),
+      {
+        enableHighAccuracy: true,
+        timeout: 15000, // Aumentado a 15 segundos
+        maximumAge: 10000
+      }
     );
 
     return () => navigator.geolocation.clearWatch(watchId);

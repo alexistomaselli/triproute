@@ -10,7 +10,9 @@ COPY . .
 
 # Easypanel will provide these at build time
 ARG VITE_API_KEY
-RUN VITE_API_KEY=$VITE_API_KEY npm run build
+ENV VITE_API_KEY=$VITE_API_KEY
+
+RUN npm run build
 
 # Production stage
 FROM nginx:stable-alpine as production-stage
