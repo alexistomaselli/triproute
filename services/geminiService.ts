@@ -32,6 +32,11 @@ export const getPlaceDetails = async (
   const client = getAIClient();
   if (!client) throw new Error("API Key no configurada.");
 
+  const model = client.getGenerativeModel({
+    model: "gemini-2.0-flash-exp",
+    tools: [{ googleMaps: {} } as any],
+  });
+
   const prompt = `INSTRUCCIÓN SISTEMA: ERES UN MOTOR DE BÚSQUEDA GEOGRÁFICO. NO SALUDES. NO DEAS EXPLICACIONES. SOLO RESPONDE EN EL FORMATO SOLICITADO.
 
   Identifica el lugar "${placeName}" cerca de "${referenceLocation}". 
@@ -43,13 +48,7 @@ export const getPlaceDetails = async (
   FORMATO DE RETORNO (OBLIGATORIO - UNA LÍNEA POR LUGAR):
   LUGAR: Nombre oficial | Descripción breve y real | Latitud, Longitud`;
 
-  const response = await client.generateContent({
-    model: "gemini-2.0-flash-exp",
-    contents: prompt,
-    config: {
-      tools: [{ googleMaps: {} }],
-    },
-  });
+  const response = await model.generateContent(prompt);
 
   if (signal?.aborted) throw new Error("Aborted");
 
@@ -57,8 +56,8 @@ export const getPlaceDetails = async (
   const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
 
   const sources: GroundingSource[] = groundingChunks
-    .filter(chunk => chunk.maps)
-    .map(chunk => ({
+    .filter((chunk: any) => chunk.maps)
+    .map((chunk: any) => ({
       title: chunk.maps?.title,
       uri: chunk.maps?.uri
     }));
@@ -90,6 +89,11 @@ export const getSuggestedDestinations = async (
   const client = getAIClient();
   if (!client) throw new Error("API Key no configurada.");
 
+  const model = client.getGenerativeModel({
+    model: "gemini-2.0-flash-exp",
+    tools: [{ googleMaps: {} } as any],
+  });
+
   const prompt = `Busca las 5 mejores atracciones turísticas y puntos de interés únicos cerca de "${referenceLocation}". 
   Debes ser específico y encontrar lugares reales (miradores, cascadas, museos, parques).
   
@@ -97,13 +101,7 @@ export const getSuggestedDestinations = async (
   Escribe una línea por cada lugar encontrado con este formato exacto:
   LUGAR: Nombre | Descripción Breve | Latitud, Longitud`;
 
-  const response = await client.generateContent({
-    model: "gemini-2.0-flash-exp",
-    contents: prompt,
-    config: {
-      tools: [{ googleMaps: {} }],
-    },
-  });
+  const response = await model.generateContent(prompt);
 
   if (signal?.aborted) throw new Error("Aborted");
 
@@ -111,8 +109,8 @@ export const getSuggestedDestinations = async (
   const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
 
   const sources: GroundingSource[] = groundingChunks
-    .filter(chunk => chunk.maps)
-    .map(chunk => ({
+    .filter((chunk: any) => chunk.maps)
+    .map((chunk: any) => ({
       title: chunk.maps?.title,
       uri: chunk.maps?.uri
     }));
