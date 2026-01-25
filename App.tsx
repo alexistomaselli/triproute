@@ -222,10 +222,6 @@ const App: React.FC = () => {
   };
 
   const handleAddDestination = (loc: LocationDetails) => {
-    if (savedState.destinations.length >= 5) {
-      alert("Has alcanzado el límite de 5 destinos de la versión gratuita. ¡Próximamente opción Premium!");
-      return;
-    }
     setSavedState(prev => ({
       ...prev,
       destinations: [...prev.destinations, loc]
