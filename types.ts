@@ -17,16 +17,19 @@ export interface GroundingSource {
   uri?: string;
 }
 
-export interface ItineraryDay {
-  day: number;
-  locations: string[];
-  recommendation: string;
-}
-
-export interface AppState {
-  referenceLocation: string;
+export interface SavedState {
+  referenceLocation: LocationDetails | null;
   destinations: LocationDetails[];
   itinerary: string;
-  isLoading: boolean;
   sources: GroundingSource[];
+}
+
+export interface UIState {
+  activeTab: 'map' | 'destinations' | 'itinerary';
+  isLoading: boolean;
+  loadingMessage: { title: string; description: string };
+  candidates: LocationDetails[];
+  isSelectingFor: 'reference' | 'destination' | null;
+  currentAbortController: AbortController | null;
+  newPlaceInput: string;
 }
