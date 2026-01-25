@@ -1,0 +1,7 @@
+{
+  "name": "TripRoute Scheduler",
+  "description": "A smart travel planner that organizes your vacation around a reference point, calculating distances and generating AI-powered daily itineraries using Google Maps and Search grounding.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
