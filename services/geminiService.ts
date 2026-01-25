@@ -2,7 +2,8 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { LocationDetails, GroundingSource } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
+const apiKey = (import.meta as any).env?.VITE_API_KEY || (process.env as any).VITE_API_KEY || "";
+const ai = new GoogleGenAI({ apiKey });
 
 export const getPlaceDetails = async (
   placeName: string,
