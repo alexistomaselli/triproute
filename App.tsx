@@ -477,35 +477,35 @@ const App: React.FC = () => {
       )}
 
       <div className="max-w-[1800px] mx-auto px-6 py-10 md:py-16">
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 md:gap-8 mb-10 md:mb-16">
           <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="p-4 bg-indigo-600 rounded-[1.5rem] shadow-xl shadow-indigo-600/30">
-                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center gap-3 md:gap-4">
+              <div className="p-3 md:p-4 bg-indigo-600 rounded-[1.2rem] md:rounded-[1.5rem] shadow-xl shadow-indigo-600/30 shrink-0">
+                <svg className="w-8 h-8 md:w-10 md:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                 </svg>
               </div>
-              <h1 className="text-4xl md:text-5xl font-black tracking-tight text-slate-900">TripRoute <span className="text-indigo-600 italic">Master</span></h1>
+              <h1 className="text-3xl md:text-5xl font-black tracking-tight text-slate-900 leading-none">TripRoute <span className="text-indigo-600 italic">Master</span></h1>
             </div>
-            <p className="text-lg text-slate-400 font-medium">Cálculos de ruta exactos con inteligencia geográfica.</p>
+            <p className="text-sm md:text-xl text-slate-400 font-medium">Cálculos de ruta exactos con inteligencia geográfica.</p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full md:w-auto">
             <button
               onClick={handleShareTrip}
-              className="px-6 py-4 bg-white text-indigo-600 border border-indigo-100 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center gap-2 shadow-lg shadow-indigo-100/50 hover:bg-indigo-50 transition-all active:scale-95"
+              className="px-6 py-4 bg-white text-indigo-600 border border-indigo-100 rounded-2xl font-black uppercase tracking-widest text-[10px] md:text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-100/50 hover:bg-indigo-50 transition-all active:scale-95"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
               </svg>
               Compartir Viaje
             </button>
-            <nav className="flex p-2 bg-white rounded-3xl shadow-lg border border-slate-100 sticky top-4 z-[50]">
+            <nav className="flex p-1.5 bg-white rounded-2xl md:rounded-3xl shadow-lg border border-slate-100 sticky top-4 z-[50]">
               {(['destinations', 'map', 'itinerary'] as const).map(tab => (
                 <button
                   key={tab}
                   onClick={() => setUiState(prev => ({ ...prev, activeTab: tab }))}
-                  className={`px-6 md:px-8 py-3 md:py-4 rounded-2xl text-[10px] md:text-xs font-black uppercase tracking-widest transition-all ${uiState.activeTab === tab
+                  className={`flex-1 px-4 md:px-8 py-2.5 md:py-4 rounded-xl md:rounded-2xl text-[9px] md:text-xs font-black uppercase tracking-widest transition-all ${uiState.activeTab === tab
                     ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20 translate-y-[-2px]'
                     : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
                     }`}
