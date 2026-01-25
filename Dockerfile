@@ -19,7 +19,7 @@ FROM nginx:stable-alpine as production-stage
 
 COPY --from=build-stage /app/dist /usr/share/nginx/html
 
-# Default nginx config to handle SPA routing if needed
+# Default nginx config
 RUN printf "server { \n\
     listen 80; \n\
     location / { \n\
@@ -31,4 +31,6 @@ RUN printf "server { \n\
 
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+# Script to inject the API Key into index.html at runtime
+# This handles both GEMINI_API_KEY and VITE_API_KEY
+CMD ["/bin/sh", "-c", "VAL=${GEMINI_API_KEY:-$VITE_API_KEY} && sed -i \"s/__VITE_API_KEY_PLACEHOLDER__/$VAL/g\" /usr/share/nginx/html/index.html && nginx -g 'daemon off;'"]

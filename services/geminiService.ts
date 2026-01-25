@@ -4,7 +4,11 @@ import { LocationDetails, GroundingSource } from "../types";
 
 // Utility to get the API Key safely
 const getApiKey = () => {
-  return (import.meta as any).env?.VITE_API_KEY || (window as any).VITE_API_KEY || "";
+  const runtimeKey = (window as any).VITE_API_KEY;
+  if (runtimeKey && runtimeKey !== "__VITE_API_KEY_PLACEHOLDER__") {
+    return runtimeKey;
+  }
+  return (import.meta as any).env?.VITE_API_KEY || "";
 };
 
 let ai: any = null;
