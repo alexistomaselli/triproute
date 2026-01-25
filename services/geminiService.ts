@@ -20,7 +20,7 @@ const getAIClient = () => {
     console.error("CRITICAL: VITE_API_KEY is missing. AI features will not work.");
     return null;
   }
-  ai = new GoogleGenAI({ apiKey: key });
+  ai = new GoogleGenAI(key);
   return ai;
 };
 
