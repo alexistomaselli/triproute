@@ -32,5 +32,5 @@ RUN printf "server { \n\
 EXPOSE 80
 
 # Script to inject the API Key into index.html at runtime
-# This handles both GEMINI_API_KEY and VITE_API_KEY from Easypanel
-CMD ["/bin/sh", "-c", "VAL=${VITE_API_KEY:-$GEMINI_API_KEY} && sed -i \"s/__VITE_API_KEY_PLACEHOLDER__/$VAL/g\" /usr/share/nginx/html/index.html && nginx -g 'daemon off;'"]
+# We use | as a delimiter in sed to avoid issues with / in keys
+CMD ["/bin/sh", "-c", "VAL=${VITE_API_KEY:-$GEMINI_API_KEY} && echo \"Checking API Key... Length: ${#VAL}\" && sed -i \"s|__VITE_API_KEY_PLACEHOLDER__|$VAL|g\" /usr/share/nginx/html/index.html && nginx -g 'daemon off;'"]
