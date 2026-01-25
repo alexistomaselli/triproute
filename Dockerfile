@@ -31,4 +31,6 @@ RUN printf "server { \n\
 
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+# Script to inject the API Key into index.html at runtime
+# This handles both GEMINI_API_KEY and VITE_API_KEY from Easypanel
+CMD ["/bin/sh", "-c", "VAL=${VITE_API_KEY:-$GEMINI_API_KEY} && sed -i \"s/__VITE_API_KEY_PLACEHOLDER__/$VAL/g\" /usr/share/nginx/html/index.html && nginx -g 'daemon off;'"]
