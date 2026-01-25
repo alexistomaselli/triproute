@@ -2,14 +2,32 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { LocationDetails, GroundingSource } from "../types";
 
-const apiKey = (import.meta as any).env?.VITE_API_KEY || (process.env as any).VITE_API_KEY || "";
-const ai = new GoogleGenAI({ apiKey });
+// Utility to get the API Key safely
+const getApiKey = () => {
+  return (import.meta as any).env?.VITE_API_KEY || (window as any).VITE_API_KEY || "";
+};
+
+let ai: any = null;
+
+const getAIClient = () => {
+  if (ai) return ai;
+  const key = getApiKey();
+  if (!key) {
+    console.error("CRITICAL: VITE_API_KEY is missing. AI features will not work.");
+    return null;
+  }
+  ai = new GoogleGenAI({ apiKey: key });
+  return ai;
+};
 
 export const getPlaceDetails = async (
   placeName: string,
   referenceLocation: string,
   signal?: AbortSignal
 ): Promise<{ candidates: LocationDetails[]; sources: GroundingSource[] }> => {
+  const client = getAIClient();
+  if (!client) throw new Error("API Key no configurada.");
+
   const prompt = `INSTRUCCIÓN SISTEMA: ERES UN MOTOR DE BÚSQUEDA GEOGRÁFICO. NO SALUDES. NO DEAS EXPLICACIONES. SOLO RESPONDE EN EL FORMATO SOLICITADO.
 
   Identifica el lugar "${placeName}" cerca de "${referenceLocation}". 
@@ -21,7 +39,7 @@ export const getPlaceDetails = async (
   FORMATO DE RETORNO (OBLIGATORIO - UNA LÍNEA POR LUGAR):
   LUGAR: Nombre oficial | Descripción breve y real | Latitud, Longitud`;
 
-  const response = await ai.models.generateContent({
+  const response = await client.generateContent({
     model: "gemini-2.0-flash-exp",
     contents: prompt,
     config: {
@@ -65,6 +83,9 @@ export const getSuggestedDestinations = async (
   referenceLocation: string,
   signal?: AbortSignal
 ): Promise<{ candidates: LocationDetails[]; sources: GroundingSource[] }> => {
+  const client = getAIClient();
+  if (!client) throw new Error("API Key no configurada.");
+
   const prompt = `Busca las 5 mejores atracciones turísticas y puntos de interés únicos cerca de "${referenceLocation}". 
   Debes ser específico y encontrar lugares reales (miradores, cascadas, museos, parques).
   
@@ -72,7 +93,7 @@ export const getSuggestedDestinations = async (
   Escribe una línea por cada lugar encontrado con este formato exacto:
   LUGAR: Nombre | Descripción Breve | Latitud, Longitud`;
 
-  const response = await ai.models.generateContent({
+  const response = await client.generateContent({
     model: "gemini-2.0-flash-exp",
     contents: prompt,
     config: {
@@ -150,7 +171,10 @@ export const generateItinerary = async (
   6. Responde en ESPAÑOL.
   7. NO incluyas introducciones ni despedidas conversacionales.`;
 
-  const response = await ai.models.generateContent({
+  const client = getAIClient();
+  if (!client) throw new Error("API Key no configurada.");
+
+  const response = await client.generateContent({
     model: "gemini-2.0-flash-exp",
     contents: prompt,
   });

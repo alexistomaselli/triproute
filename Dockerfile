@@ -10,9 +10,7 @@ COPY . .
 
 # Easypanel will provide these at build time
 ARG VITE_API_KEY
-ENV VITE_API_KEY=$VITE_API_KEY
-
-RUN npm run build
+RUN VITE_API_KEY=$VITE_API_KEY npm run build
 
 # Production stage
 FROM nginx:stable-alpine as production-stage
@@ -23,11 +21,11 @@ COPY --from=build-stage /app/dist /usr/share/nginx/html
 RUN printf "server { \n\
     listen 80; \n\
     location / { \n\
-        root /usr/share/nginx/html; \n\
-        index index.html index.htm; \n\
-        try_files \$uri \$uri/ /index.html; \n\
+    root /usr/share/nginx/html; \n\
+    index index.html index.htm; \n\
+    try_files \$uri \$uri/ /index.html; \n\
     } \n\
-}" > /etc/nginx/conf.d/default.conf
+    }" > /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
