@@ -530,39 +530,41 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex gap-3 mb-6">
+              <div className="flex flex-col sm:flex-row gap-3 mb-6">
                 <input
                   type="text"
                   value={refInput}
                   onChange={(e) => setRefInput(e.target.value)}
                   placeholder="Ej: Córdoba, Argentina"
-                  className="flex-1 px-6 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all outline-none font-bold text-slate-700 placeholder:text-slate-300"
+                  className="flex-1 px-4 md:px-6 py-4 md:py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all outline-none font-bold text-slate-700 placeholder:text-slate-300 min-w-0"
                 />
-                <button
-                  onClick={handleUseCurrentLocation}
-                  className="p-5 bg-indigo-50 text-indigo-600 rounded-2xl hover:bg-indigo-600 hover:text-white transition-all shadow-md active:scale-95"
-                  title="Usar ubicación actual (GPS)"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </button>
-                <button
-                  onClick={handleSetReference}
-                  className="p-5 bg-slate-900 text-white rounded-2xl hover:bg-indigo-600 transition-all shadow-xl active:scale-95 group"
-                >
-                  <svg className="w-6 h-6 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
-                  </svg>
-                </button>
+                <div className="flex gap-3 h-[58px] md:h-auto">
+                  <button
+                    onClick={handleUseCurrentLocation}
+                    className="flex-1 md:flex-none md:p-5 bg-indigo-50 text-indigo-600 rounded-2xl hover:bg-indigo-600 hover:text-white transition-all shadow-md active:scale-95 flex items-center justify-center p-4 px-6"
+                    title="Usar ubicación actual (GPS)"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={handleSetReference}
+                    className="flex-1 md:flex-none md:p-5 bg-slate-900 text-white rounded-2xl hover:bg-indigo-600 transition-all shadow-xl active:scale-95 group flex items-center justify-center p-4 px-6"
+                  >
+                    <svg className="w-6 h-6 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               {savedState.referenceLocation && (
                 <div className="p-6 bg-indigo-50/50 rounded-3xl border border-indigo-100 animate-in slide-in-from-top-4">
                   <div className="flex justify-between items-start mb-2">
                     <h4 className="font-black text-indigo-900 text-lg leading-tight">{savedState.referenceLocation.name}</h4>
-                    <button onClick={clearAllData} className="text-[10px] font-black uppercase text-rose-500 hover:underline">Reiniciar todo</button>
+                    <button onClick={clearAllData} className="text-[10px] font-black uppercase text-rose-500 hover:underline shrink-0 ml-2">Reiniciar todo</button>
                   </div>
                   <p className="text-indigo-600/70 text-sm font-medium leading-relaxed">{savedState.referenceLocation.description}</p>
                 </div>
@@ -572,7 +574,7 @@ const App: React.FC = () => {
             {savedState.referenceLocation && (
               <section className="animate-in slide-in-from-bottom-8 duration-500">
                 <div className="flex items-center justify-between mb-8 px-2">
-                  <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">Tus Destinos {savedState.destinations.length > 0 && `(${savedState.destinations.length}/5)`}</h2>
+                  <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">Tus Destinos {savedState.destinations.length > 0 && `(${savedState.destinations.length})`}</h2>
                   <button
                     onClick={handleSuggestDestinations}
                     className="text-xs font-black text-indigo-600 hover:text-indigo-800 flex items-center gap-2 group p-2 bg-indigo-50 rounded-xl transition-all"
