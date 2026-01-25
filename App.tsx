@@ -172,7 +172,14 @@ const App: React.FC = () => {
       console.error("Error getting location", error);
       setUiState(prev => ({ ...prev, isLoading: false }));
       if (error.code === 1) {
-        alert("Permiso de GPS denegado. Por favor, habilítalo en los ajustes de tu navegador.");
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        let msg = "Permiso de GPS denegado.";
+        if (isIOS) {
+          msg += "\n\nEn iPhone:\n1. Toca 'AA' o '...' en el navegador.\n2. Ve a 'Configuración del sitio'.\n3. Cambia Ubicación a 'Permitir'.";
+        } else {
+          msg += "\n\nPor favor, habilítalo en los ajustes de tu navegador o candado de la URL.";
+        }
+        alert(msg);
       } else {
         alert("No se pudo obtener tu ubicación actual.");
       }
