@@ -4,11 +4,27 @@ import { LocationDetails, GroundingSource } from "../types";
 
 // Utility to get the API Key safely
 const getApiKey = () => {
+  // 1. Look for runtime injection
   const runtimeKey = (window as any).VITE_API_KEY;
-  if (runtimeKey && runtimeKey !== "__VITE_API_KEY_PLACEHOLDER__") {
-    return runtimeKey;
+
+  // 2. Look for build-time injection
+  const buildKey = (import.meta as any).env?.VITE_API_KEY;
+
+  let finalKey = "";
+
+  if (runtimeKey &&
+    runtimeKey !== "__VITE_API_KEY_PLACEHOLDER__" &&
+    runtimeKey.trim() !== "" &&
+    !runtimeKey.includes("PLACEHOLDER")) {
+    finalKey = runtimeKey;
+  } else if (buildKey && buildKey.trim() !== "") {
+    finalKey = buildKey;
   }
-  return (import.meta as any).env?.VITE_API_KEY || "";
+
+  // Clean the key: remove quotes and spaces that Easypanel might add
+  finalKey = finalKey.replace(/['"]+/g, '').trim();
+
+  return finalKey;
 };
 
 let ai: any = null;
@@ -16,12 +32,20 @@ let ai: any = null;
 const getAIClient = () => {
   if (ai) return ai;
   const key = getApiKey();
+
   if (!key) {
-    console.error("CRITICAL: VITE_API_KEY is missing. AI features will not work.");
+    console.error("DIAGNOSTIC: No API Key found in either window.VITE_API_KEY or import.meta.env. AI will fail.");
     return null;
   }
-  ai = new GoogleGenAI(key);
-  return ai;
+
+  try {
+    ai = new GoogleGenAI(key);
+    console.log("DIAGNOSTIC: AI Client initialized with key length:", key.length);
+    return ai;
+  } catch (e) {
+    console.error("DIAGNOSTIC: Failed to initialize GoogleGenAI:", e);
+    return null;
+  }
 };
 
 export const getPlaceDetails = async (
