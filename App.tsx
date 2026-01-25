@@ -594,16 +594,13 @@ const App: React.FC = () => {
                     value={uiState.newPlaceInput}
                     onChange={(e) => setUiState(prev => ({ ...prev, newPlaceInput: e.target.value }))}
                     placeholder="¿A dónde quieres ir?"
-                    className="w-full pl-14 pr-6 py-5 bg-white border-2 border-slate-100 rounded-[2rem] shadow-lg shadow-slate-200/50 focus:border-indigo-500 transition-all outline-none font-bold text-slate-700 placeholder:text-slate-300"
+                    className="w-full pl-12 md:pl-14 pr-6 py-4 md:py-5 bg-white border-2 border-slate-100 rounded-[2rem] shadow-lg shadow-slate-200/50 focus:border-indigo-500 transition-all outline-none font-bold text-slate-700 placeholder:text-slate-300"
                   />
-                  <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors">
+                  <div className="absolute left-4 md:left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors flex items-center gap-2">
                     {uiState.isLoading ? (
-                      <div className="w-6 h-6 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                      <div className="w-5 h-5 md:w-6 md:h-6 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
                     ) : (
-                      <span className="flex flex-col items-center">
-                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z" /></svg>
-                        Google Maps AI
-                      </span>
+                      <svg className="w-5 h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z" /></svg>
                     )}
                   </div>
                 </form>
