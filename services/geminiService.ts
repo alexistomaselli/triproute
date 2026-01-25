@@ -178,10 +178,11 @@ export const generateItinerary = async (
   const client = getAIClient();
   if (!client) throw new Error("API Key no configurada.");
 
-  const response = await client.generateContent({
+  const model = client.getGenerativeModel({
     model: "gemini-2.0-flash-exp",
-    contents: prompt,
   });
+
+  const response = await model.generateContent(prompt);
 
   if (signal?.aborted) throw new Error("Aborted");
 
