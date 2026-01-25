@@ -5,42 +5,34 @@ import { LocationDetails, GroundingSource } from "../types";
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
 
 export const getPlaceDetails = async (
-  placeName: string, 
-  referenceLocation: string
-): Promise<{ details: LocationDetails; sources: GroundingSource[] }> => {
-  const prompt = `Proporciona detalles sobre "${placeName}" en relación a "${referenceLocation}". 
-  Incluye:
-  1. Una descripción breve y atractiva.
-  2. Actividades principales.
-  3. La distancia aproximada por carretera desde "${referenceLocation}".
-  4. MUY IMPORTANTE: Al final de tu respuesta, incluye las coordenadas geográficas aproximadas en el formato exacto: COORDS: [LATITUD, LONGITUD].
+  placeName: string,
+  referenceLocation: string,
+  signal?: AbortSignal
+): Promise<{ candidates: LocationDetails[]; sources: GroundingSource[] }> => {
+  const prompt = `INSTRUCCIÓN SISTEMA: ERES UN MOTOR DE BÚSQUEDA GEOGRÁFICO. NO SALUDES. NO DEAS EXPLICACIONES. SOLO RESPONDE EN EL FORMATO SOLICITADO.
+
+  Identifica el lugar "${placeName}" cerca de "${referenceLocation}". 
+  REGLAS CRÍTICAS:
+  1. Si existen múltiples lugares con nombres similares o idénticos (ej: un hotel y un lago), DEBES devolver todas las opciones (hasta 5).
+  2. Si el nombre es ambiguo, ofrece alternativas.
+  3. Corrige nombres parciales al oficial.
   
-  Retorna la información en español.`;
+  FORMATO DE RETORNO (OBLIGATORIO - UNA LÍNEA POR LUGAR):
+  LUGAR: Nombre oficial | Descripción breve y real | Latitud, Longitud`;
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-2.0-flash-exp",
     contents: prompt,
     config: {
       tools: [{ googleMaps: {} }],
     },
   });
 
-  const text = response.text || "No se encontró información.";
-  
-  // Extraer coordenadas con Regex
-  const coordsMatch = text.match(/COORDS:\s*\[(-?\d+\.\d+),\s*(-?\d+\.\d+)\]/);
-  let coordinates;
-  if (coordsMatch) {
-    coordinates = {
-      lat: parseFloat(coordsMatch[1]),
-      lng: parseFloat(coordsMatch[2])
-    };
-  }
+  if (signal?.aborted) throw new Error("Aborted");
 
-  const cleanDescription = text.replace(/COORDS:\s*\[.*\]/, "").trim();
-
+  const text = response.text || "";
   const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-  
+
   const sources: GroundingSource[] = groundingChunks
     .filter(chunk => chunk.maps)
     .map(chunk => ({
@@ -48,50 +40,126 @@ export const getPlaceDetails = async (
       uri: chunk.maps?.uri
     }));
 
-  return {
-    details: {
-      name: placeName,
-      description: cleanDescription,
-      activities: [],
-      distanceFromRef: "Calculando distancia...",
-      mapsUri: sources[0]?.uri,
-      coordinates
+  const lines = text.split('\n');
+  const candidates: LocationDetails[] = [];
+
+  for (const line of lines) {
+    const match = line.match(/LUGAR:\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)/i);
+    if (match) {
+      candidates.push({
+        name: match[1].trim(),
+        description: match[2].trim(),
+        activities: [],
+        distanceFromRef: "Cálculo pendiente...",
+        mapsUri: sources[0]?.uri,
+        coordinates: { lat: parseFloat(match[3]), lng: parseFloat(match[4]) }
+      });
+    }
+  }
+
+  return { candidates, sources };
+};
+
+export const getSuggestedDestinations = async (
+  referenceLocation: string,
+  signal?: AbortSignal
+): Promise<{ candidates: LocationDetails[]; sources: GroundingSource[] }> => {
+  const prompt = `Busca las 5 mejores atracciones turísticas y puntos de interés únicos cerca de "${referenceLocation}". 
+  Debes ser específico y encontrar lugares reales (miradores, cascadas, museos, parques).
+  
+  FORMATO DE RETORNO (OBLIGATORIO):
+  Escribe una línea por cada lugar encontrado con este formato exacto:
+  LUGAR: Nombre | Descripción Breve | Latitud, Longitud`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.0-flash-exp",
+    contents: prompt,
+    config: {
+      tools: [{ googleMaps: {} }],
     },
-    sources
-  };
+  });
+
+  if (signal?.aborted) throw new Error("Aborted");
+
+  const text = response.text || "";
+  const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+
+  const sources: GroundingSource[] = groundingChunks
+    .filter(chunk => chunk.maps)
+    .map(chunk => ({
+      title: chunk.maps?.title,
+      uri: chunk.maps?.uri
+    }));
+
+  const lines = text.split('\n');
+  const candidates: LocationDetails[] = [];
+
+  for (const line of lines) {
+    // Intentar el formato estándar
+    const match = line.match(/(?:LUGAR|ITEM):\s*(?:\[)?(.*?)(?:\])?\s*\|\s*(?:\[)?(.*?)(?:\])?\s*\|\s*(?:\[)?(-?\d+\.\d+),\s*(-?\d+\.\d+)(?:\])?/i);
+    if (match) {
+      candidates.push({
+        name: match[1].trim(),
+        description: match[2].trim(),
+        activities: [],
+        distanceFromRef: "Cálculo pendiente...",
+        mapsUri: sources[0]?.uri,
+        coordinates: { lat: parseFloat(match[3]), lng: parseFloat(match[4]) }
+      });
+    }
+  }
+
+  // Fallback agresivo: si no hay formato pero hay líneas con coordenadas
+  if (candidates.length === 0) {
+    for (const line of lines) {
+      const coordsMatch = line.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
+      if (coordsMatch && line.length > 20) {
+        const parts = line.split(/[|:-]/);
+        candidates.push({
+          name: parts[0].replace(/LUGAR|ITEM|[*#]/gi, '').trim() || "Lugar sugerido",
+          description: parts[1]?.trim() || "Atracción turística cercana.",
+          activities: [],
+          distanceFromRef: "Cálculo pendiente...",
+          mapsUri: sources[0]?.uri,
+          coordinates: { lat: parseFloat(coordsMatch[1]), lng: parseFloat(coordsMatch[2]) }
+        });
+      }
+    }
+  }
+
+  return { candidates, sources };
 };
 
 export const generateItinerary = async (
   referenceLocation: string,
-  destinations: string[]
+  destinations: string[],
+  signal?: AbortSignal
 ): Promise<{ itinerary: string; sources: GroundingSource[] }> => {
   if (destinations.length === 0) return { itinerary: "", sources: [] };
 
   const prompt = `Crea un itinerario de viaje optimizado para visitar los siguientes lugares desde el punto de referencia "${referenceLocation}":
   Lugares a visitar: ${destinations.join(", ")}.
-  Organiza los días de forma lógica basándote en la cercanía geográfica. 
-  Para cada día, explica qué conocer y por qué ese orden.`;
+  
+  REGLAS:
+  1. Organiza los días de forma lógica basándote en la cercanía geográfica. 
+  2. Para cada día, explica qué conocer y por qué ese orden.
+  3. Sugiere horarios recomendados (mañana, tarde, atardecer).
+  4. Menciona consejos locales (donde sacar fotos, qué llevar, precauciones de seguridad o clima).
+  5. Mantén un tono entusiasta y servicial para un viajero de vacaciones.
+  6. Responde en ESPAÑOL.
+  7. NO incluyas introducciones ni despedidas conversacionales.`;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-2.0-flash-exp",
     contents: prompt,
-    config: {
-      tools: [{ googleSearch: {} }],
-    },
   });
 
+  if (signal?.aborted) throw new Error("Aborted");
+
   const itineraryText = response.text || "No se pudo generar el itinerario.";
-  const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-  
-  const sources: GroundingSource[] = groundingChunks
-    .filter(chunk => chunk.web)
-    .map(chunk => ({
-      title: chunk.web?.title,
-      uri: chunk.web?.uri
-    }));
 
   return {
     itinerary: itineraryText,
-    sources
+    sources: []
   };
 };
