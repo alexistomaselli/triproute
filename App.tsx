@@ -139,7 +139,14 @@ const App: React.FC = () => {
       alert("Tu navegador no soporta geolocalización");
       return;
     }
-    setUiState(prev => ({ ...prev, isLoading: true }));
+
+    setUiState(prev => ({
+      ...prev,
+      isLoading: true,
+      loadingMessage: { title: 'Obteniendo Ubicación', description: 'Por favor, acepta el permiso de GPS en tu navegador si aparece.' }
+    }));
+
+    // Trigger explicit permission request
     navigator.geolocation.getCurrentPosition(async (position) => {
       const { latitude, longitude } = position.coords;
       try {
@@ -154,6 +161,8 @@ const App: React.FC = () => {
           const updated = await updateAllDistances(details, savedState.destinations);
           setSavedState(prev => ({ ...prev, destinations: updated }));
         }
+        // Ensure userPosition is updated immediately
+        setUserPosition({ lat: latitude, lng: longitude });
       } catch (error) {
         console.error("Error reverse geocoding", error);
       } finally {
@@ -162,8 +171,12 @@ const App: React.FC = () => {
     }, (error) => {
       console.error("Error getting location", error);
       setUiState(prev => ({ ...prev, isLoading: false }));
-      alert("No se pudo obtener tu ubicación");
-    });
+      if (error.code === 1) {
+        alert("Permiso de GPS denegado. Por favor, habilítalo en los ajustes de tu navegador.");
+      } else {
+        alert("No se pudo obtener tu ubicación actual.");
+      }
+    }, { enableHighAccuracy: true, timeout: 10000 });
   };
 
   const handleSetReference = async () => {
@@ -472,25 +485,36 @@ const App: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                 </svg>
               </div>
-              <h1 className="text-5xl font-black tracking-tight text-slate-900">TripRoute <span className="text-indigo-600 italic">Master</span></h1>
+              <h1 className="text-4xl md:text-5xl font-black tracking-tight text-slate-900">TripRoute <span className="text-indigo-600 italic">Master</span></h1>
             </div>
-            <p className="text-xl text-slate-400 font-medium">Cálculos de ruta exactos con inteligencia geográfica.</p>
+            <p className="text-lg text-slate-400 font-medium">Cálculos de ruta exactos con inteligencia geográfica.</p>
           </div>
 
-          <nav className="flex p-2 bg-white rounded-3xl shadow-lg border border-slate-100 sticky top-4 z-[50]">
-            {(['destinations', 'map', 'itinerary'] as const).map(tab => (
-              <button
-                key={tab}
-                onClick={() => setUiState(prev => ({ ...prev, activeTab: tab }))}
-                className={`px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${uiState.activeTab === tab
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleShareTrip}
+              className="px-6 py-4 bg-white text-indigo-600 border border-indigo-100 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center gap-2 shadow-lg shadow-indigo-100/50 hover:bg-indigo-50 transition-all active:scale-95"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              </svg>
+              Compartir Viaje
+            </button>
+            <nav className="flex p-2 bg-white rounded-3xl shadow-lg border border-slate-100 sticky top-4 z-[50]">
+              {(['destinations', 'map', 'itinerary'] as const).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setUiState(prev => ({ ...prev, activeTab: tab }))}
+                  className={`px-6 md:px-8 py-3 md:py-4 rounded-2xl text-[10px] md:text-xs font-black uppercase tracking-widest transition-all ${uiState.activeTab === tab
                     ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20 translate-y-[-2px]'
                     : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
-                  }`}
-              >
-                {tab === 'destinations' ? 'Destinos' : tab === 'map' ? 'Mapa' : 'Itinerario'}
-              </button>
-            ))}
-          </nav>
+                    }`}
+                >
+                  {tab === 'destinations' ? 'Destinos' : tab === 'map' ? 'Mapa' : 'Itinerario'}
+                </button>
+              ))}
+            </nav>
+          </div>
         </header>
 
         <main className="grid grid-cols-1 xl:grid-cols-12 gap-10 items-start">
@@ -498,19 +522,10 @@ const App: React.FC = () => {
             <section className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-200">
               <div className="flex items-center justify-between mb-8">
                 <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">Punto de Referencia</h2>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleShareTrip}
-                    className="p-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors"
-                    title="Compartir Viaje"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                    </svg>
-                  </button>
+                <div className="md:hidden">
                   <button
                     onClick={() => setUiState(prev => ({ ...prev, activeTab: 'map' }))}
-                    className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors md:hidden"
+                    className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                   >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
