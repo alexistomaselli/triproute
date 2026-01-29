@@ -1,5 +1,6 @@
 
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
 import { LocationDetails } from '../types';
 
 interface PlaceCardProps {
@@ -10,17 +11,16 @@ interface PlaceCardProps {
 
 export const PlaceCard: React.FC<PlaceCardProps> = ({ place, onRemove, isReference = false }) => {
   return (
-    <div className={`group relative p-5 rounded-2xl border transition-all duration-300 break-words ${
-      isReference 
-        ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-100' 
-        : 'bg-white border-slate-100 hover:border-indigo-200 hover:shadow-xl hover:shadow-slate-200/50'
-    }`}>
+    <div className={`group relative p-5 rounded-2xl border transition-all duration-300 break-words ${isReference
+      ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-100'
+      : 'bg-white border-slate-100 hover:border-indigo-200 hover:shadow-xl hover:shadow-slate-200/50'
+      }`}>
       <div className="flex justify-between items-start gap-3 mb-2">
         <div className="min-w-0">
-          <h3 className={`font-black text-base truncate leading-tight ${isReference ? 'text-white' : 'text-slate-900'}`}>
-            {place.name}
+          <h3 className={`font-black text-base leading-tight ${isReference ? 'text-white' : 'text-slate-900'}`}>
+            <ReactMarkdown components={{ p: 'span' }}>{place.name}</ReactMarkdown>
           </h3>
-          
+
           {!isReference && (place.distanceFromRef || place.travelTime) && (
             <div className="flex items-center gap-2 mt-2">
               <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-widest border border-indigo-100 flex items-center gap-1.5">
@@ -40,9 +40,9 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({ place, onRemove, isReferen
             </div>
           )}
         </div>
-        
+
         {!isReference && (
-          <button 
+          <button
             onClick={() => onRemove(place.name)}
             className="flex-shrink-0 p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
             title="Eliminar destino"
@@ -53,19 +53,18 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({ place, onRemove, isReferen
           </button>
         )}
       </div>
-      
-      <div className={`text-xs leading-relaxed mb-4 line-clamp-3 group-hover:line-clamp-none transition-all ${isReference ? 'text-indigo-100' : 'text-slate-500'}`}>
-        {place.description}
+
+      <div className={`text-xs leading-relaxed mb-4 line-clamp-3 group-hover:line-clamp-none transition-all ${isReference ? 'text-indigo-100' : 'text-slate-500'} markdown-content`}>
+        <ReactMarkdown>{place.description}</ReactMarkdown>
       </div>
 
       {place.mapsUri && (
-        <a 
-          href={place.mapsUri} 
-          target="_blank" 
+        <a
+          href={place.mapsUri}
+          target="_blank"
           rel="noopener noreferrer"
-          className={`inline-flex items-center text-[10px] font-black uppercase tracking-widest transition-all ${
-            isReference ? 'text-white underline-offset-4 hover:underline' : 'text-indigo-600 hover:text-indigo-800'
-          }`}
+          className={`inline-flex items-center text-[10px] font-black uppercase tracking-widest transition-all ${isReference ? 'text-white underline-offset-4 hover:underline' : 'text-indigo-600 hover:text-indigo-800'
+            }`}
         >
           <svg className="h-3 w-3 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
             <path d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" />

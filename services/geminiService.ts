@@ -4,14 +4,10 @@ import { LocationDetails, GroundingSource } from "../types";
 
 // Utility to get the API Key safely
 const getApiKey = () => {
-  // 1. Look for runtime injection
   const runtimeKey = (window as any).VITE_API_KEY;
-
-  // 2. Look for build-time injection
   const buildKey = (import.meta as any).env?.VITE_API_KEY;
 
   let finalKey = "";
-
   if (runtimeKey &&
     runtimeKey !== "__VITE_API_KEY_PLACEHOLDER__" &&
     runtimeKey.trim() !== "" &&
@@ -20,85 +16,104 @@ const getApiKey = () => {
   } else if (buildKey && buildKey.trim() !== "") {
     finalKey = buildKey;
   }
-
-  // Clean the key: remove quotes and spaces that Easypanel might add
-  finalKey = finalKey.replace(/['"]+/g, '').trim();
-
-  return finalKey;
+  return finalKey.replace(/['"]+/g, '').trim();
 };
 
-let ai: any = null;
-
+let ai: GoogleGenAI | null = null;
 const getAIClient = () => {
   if (ai) return ai;
   const key = getApiKey();
+  if (!key) return null;
+  // Usamos el constructor oficial del SDK @google/genai
+  ai = new GoogleGenAI({ apiKey: key });
+  return ai;
+};
 
-  if (!key) {
-    console.error("DIAGNOSTIC: No API Key found in either window.VITE_API_KEY or import.meta.env. AI will fail.");
-    return null;
-  }
+// Rate limiting and retry logic
+const callGeminiWithRetry = async (modelName: string, prompt: string, signal?: AbortSignal, retries = 3, tools?: any[]) => {
+  const client = getAIClient();
+  if (!client) throw new Error("API Key no configurada.");
 
-  try {
-    // Current SDK @google/genai uses an options object
-    ai = new GoogleGenAI({ apiKey: key });
-    return ai;
-  } catch (e) {
-    console.error("DIAGNOSTIC: Failed to initialize GoogleGenAI:", e);
-    return null;
+  for (let i = 0; i < retries; i++) {
+    try {
+      console.log(`[GenAI SDK] Llamando a ${modelName}, intento ${i + 1}...`);
+
+      // Patrón oficial del SDK @google/genai: client.models.generateContent
+      const response = await client.models.generateContent({
+        model: modelName,
+        contents: prompt,
+        config: tools ? { tools } : undefined
+      });
+
+      console.log("[GenAI SDK] Respuesta recibida satisfactoriamente.");
+      // En este SDK .text es un getter (propiedad), no una función.
+      return response;
+    } catch (error: any) {
+      console.error(`[GenAI SDK] Error en intento ${i + 1}:`, error);
+      if (error.status === 429 && i < retries - 1) {
+        console.log("Rate limit alcanzado, reintentando...");
+        await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
+        continue;
+      }
+      throw error;
+    }
   }
+  throw new Error("Max retries reached");
 };
 
 export const getPlaceDetails = async (
   placeName: string,
   referenceLocation: string,
+  referenceCoords?: { lat: number, lng: number },
   signal?: AbortSignal
 ): Promise<{ candidates: LocationDetails[]; sources: GroundingSource[] }> => {
-  const client = getAIClient();
-  if (!client) throw new Error("API Key no configurada.");
+  const coordContext = referenceCoords ? ` (en o cerca de lat: ${referenceCoords.lat}, lng: ${referenceCoords.lng})` : "";
 
-  const prompt = `INSTRUCCIÓN SISTEMA: ERES UN MOTOR DE BÚSQUEDA GEOGRÁFICO. NO SALUDES. NO DEAS EXPLICACIONES. SOLO RESPONDE EN EL FORMATO SOLICITADO.
-
-  Identifica el lugar "${placeName}" cerca de "${referenceLocation}". 
-  REGLAS CRÍTICAS:
-  1. Si existen múltiples lugares con nombres similares o idénticos (ej: un hotel y un lago), DEBES devolver todas las opciones (hasta 5).
-  2. Si el nombre es ambiguo, ofrece alternativas.
-  3. Corrige nombres parciales al oficial.
+  const prompt = `ERES UN EXPERTO EN GEOGRAFÍA Y TURISMO.
+  Busca "${placeName}" en un radio de 100km alrededor de "${referenceLocation}"${coordContext}.
   
-  FORMATO DE RETORNO (OBLIGATORIO - UNA LÍNEA POR LUGAR):
-  LUGAR: Nombre oficial | Descripción breve y real | Latitud, Longitud`;
+  REGLAS CRÍTICAS:
+  1. ENCUENTRA LAS COORDENADAS: Debes proporcionar latitud y longitud numérica para CADA lugar.
+  2. SI NO HAY DATOS EXACTOS: Usa tu conocimiento interno para dar una ubicación aproximada. NUNCA respondas con frases como "no se encontraron coordenadas".
+  3. IDIOMA: Responde 100% en ESPAÑOL.
+  4. FORMATO: Solo líneas que empiecen con "LUGAR:". Sin charlas ni introducciones.
+  
+  FORMATO (CUMPLE A RAJATABLA):
+  LUGAR: Nombre | Descripción corta | Latitud, Longitud`;
 
-  const response = await client.models.generateContent({
-    model: "gemini-2.0-flash-exp",
-    contents: prompt,
-    config: {
-      tools: [{ googleMaps: {} } as any],
-    },
-  });
-
-  if (signal?.aborted) throw new Error("Aborted");
+  // Usamos gemini-2.0-flash con la herramienta googleSearch
+  const response = await callGeminiWithRetry(
+    "gemini-2.0-flash",
+    prompt,
+    signal,
+    3,
+    [{ googleSearch: {} }]
+  );
 
   const text = response.text || "";
-  const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+  console.log("[GenAI SDK] Texto recibido:", text);
 
+  const groundingChunks = (response as any).candidates?.[0]?.groundingMetadata?.groundingChunks || [];
   const sources: GroundingSource[] = groundingChunks
-    .filter((chunk: any) => chunk.maps)
+    .filter((chunk: any) => chunk.web)
     .map((chunk: any) => ({
-      title: chunk.maps?.title,
-      uri: chunk.maps?.uri
+      title: chunk.web?.title,
+      uri: chunk.web?.uri
     }));
 
   const lines = text.split('\n');
   const candidates: LocationDetails[] = [];
 
   for (const line of lines) {
-    const match = line.match(/LUGAR:\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)/i);
+    // Regex robusto que busca LUGAR: Nombre | Desc | Lat, Lng
+    const match = line.match(/LUGAR:\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/i);
     if (match) {
       candidates.push({
         name: match[1].trim(),
         description: match[2].trim(),
         activities: [],
-        distanceFromRef: "Cálculo pendiente...",
-        mapsUri: sources[0]?.uri,
+        distanceFromRef: "Pendiente...",
+        mapsUri: `https://www.google.com/maps/search/?api=1&query=${match[3]},${match[4]}`,
         coordinates: { lat: parseFloat(match[3]), lng: parseFloat(match[4]) }
       });
     }
@@ -111,73 +126,41 @@ export const getSuggestedDestinations = async (
   referenceLocation: string,
   signal?: AbortSignal
 ): Promise<{ candidates: LocationDetails[]; sources: GroundingSource[] }> => {
-  const client = getAIClient();
-  if (!client) throw new Error("API Key no configurada.");
-
-  const prompt = `Busca las 5 mejores atracciones turísticas y puntos de interés únicos cerca de "${referenceLocation}". 
-  Debes ser específico y encontrar lugares reales (miradores, cascadas, museos, parques).
+  const prompt = `Busca las 5 mejores atracciones turísticas cerca de "${referenceLocation}". 
   
-  FORMATO DE RETORNO (OBLIGATORIO):
-  Escribe una línea por cada lugar encontrado con este formato exacto:
-  LUGAR: Nombre | Descripción Breve | Latitud, Longitud`;
+  REGLAS DE ORO:
+  1. DEBES encontrar las coordenadas (latitud y longitud) exactas de cada lugar.
+  2. Responde exclusivamente en ESPAÑOL.
+  3. PROHIBIDO dar introducciones o explicaciones.
+  4. SOLO RESPONDE CON LÍNEAS QUE SIGAN EL FORMATO:
+     LUGAR: Nombre | Descripción | Latitud, Longitud`;
 
-  const response = await client.models.generateContent({
-    model: "gemini-2.0-flash-exp",
-    contents: prompt,
-    config: {
-      tools: [{ googleMaps: {} } as any],
-    },
-  });
-
-  if (signal?.aborted) throw new Error("Aborted");
+  const response = await callGeminiWithRetry(
+    "gemini-2.0-flash",
+    prompt,
+    signal,
+    3,
+    [{ googleSearch: {} }]
+  );
 
   const text = response.text || "";
-  const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-
-  const sources: GroundingSource[] = groundingChunks
-    .filter((chunk: any) => chunk.maps)
-    .map((chunk: any) => ({
-      title: chunk.maps?.title,
-      uri: chunk.maps?.uri
-    }));
-
   const lines = text.split('\n');
   const candidates: LocationDetails[] = [];
 
   for (const line of lines) {
-    // Intentar el formato estándar
-    const match = line.match(/(?:LUGAR|ITEM):\s*(?:\[)?(.*?)(?:\])?\s*\|\s*(?:\[)?(.*?)(?:\])?\s*\|\s*(?:\[)?(-?\d+\.\d+),\s*(-?\d+\.\d+)(?:\])?/i);
+    const match = line.match(/LUGAR:\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/i);
     if (match) {
       candidates.push({
         name: match[1].trim(),
         description: match[2].trim(),
         activities: [],
-        distanceFromRef: "Cálculo pendiente...",
-        mapsUri: sources[0]?.uri,
+        distanceFromRef: "Pendiente...",
         coordinates: { lat: parseFloat(match[3]), lng: parseFloat(match[4]) }
       });
     }
   }
 
-  // Fallback agresivo: si no hay formato pero hay líneas con coordenadas
-  if (candidates.length === 0) {
-    for (const line of lines) {
-      const coordsMatch = line.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
-      if (coordsMatch && line.length > 20) {
-        const parts = line.split(/[|:-]/);
-        candidates.push({
-          name: parts[0].replace(/LUGAR|ITEM|[*#]/gi, '').trim() || "Lugar sugerido",
-          description: parts[1]?.trim() || "Atracción turística cercana.",
-          activities: [],
-          distanceFromRef: "Cálculo pendiente...",
-          mapsUri: sources[0]?.uri,
-          coordinates: { lat: parseFloat(coordsMatch[1]), lng: parseFloat(coordsMatch[2]) }
-        });
-      }
-    }
-  }
-
-  return { candidates, sources };
+  return { candidates, sources: [] };
 };
 
 export const generateItinerary = async (
@@ -187,32 +170,20 @@ export const generateItinerary = async (
 ): Promise<{ itinerary: string; sources: GroundingSource[] }> => {
   if (destinations.length === 0) return { itinerary: "", sources: [] };
 
-  const prompt = `Crea un itinerario de viaje optimizado para visitar los siguientes lugares desde el punto de referencia "${referenceLocation}":
-  Lugares a visitar: ${destinations.join(", ")}.
-  
-  REGLAS:
-  1. Organiza los días de forma lógica basándote en la cercanía geográfica. 
-  2. Para cada día, explica qué conocer y por qué ese orden.
-  3. Sugiere horarios recomendados (mañana, tarde, atardecer).
-  4. Menciona consejos locales (donde sacar fotos, qué llevar, precauciones de seguridad o clima).
-  5. Mantén un tono entusiasta y servicial para un viajero de vacaciones.
-  6. Responde en ESPAÑOL.
-  7. NO incluyas introducciones ni despedidas conversacionales.`;
+  const prompt = `Crea un itinerario para visitar ${destinations.join(", ")} desde "${referenceLocation}". Responde en ESPAÑOL.`;
 
-  const client = getAIClient();
-  if (!client) throw new Error("API Key no configurada.");
-
-  const response = await client.models.generateContent({
-    model: "gemini-2.0-flash-exp",
-    contents: prompt,
-  });
-
-  if (signal?.aborted) throw new Error("Aborted");
-
-  const itineraryText = response.text || "No se pudo generar el itinerario.";
+  const response = await callGeminiWithRetry(
+    "gemini-2.0-flash",
+    prompt,
+    signal
+  );
 
   return {
-    itinerary: itineraryText,
+    itinerary: response.text || "Error al generar itinerario.",
     sources: []
   };
+};
+
+export const getAutocompleteSuggestions = async (query: string, signal?: AbortSignal): Promise<LocationDetails[]> => {
+  return [];
 };

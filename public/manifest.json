@@ -1,6 +1,6 @@
 {
-  "name": "TripRoute Master",
-  "short_name": "TripRoute",
+  "name": "VoiA Travel",
+  "short_name": "VoiA",
   "description": "Planificador de viajes con IA y cálculos de ruta exactos.",
   "start_url": "/",
   "display": "standalone",
